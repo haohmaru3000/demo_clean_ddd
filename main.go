@@ -6,12 +6,13 @@ import (
 	"log"
 	"time"
 
+	"github.com/google/uuid"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
 
 type BaseModel struct {
-	Id        int       `gorm:"column:id;"`
+	Id        uuid.UUID `gorm:"column:id;"`
 	Status    string    `gorm:"column:status;"`
 	CreatedAt time.Time `gorm:"column:created_at;"`
 	UpdatedAt time.Time `gorm:"column:updated_at;"`
@@ -59,8 +60,11 @@ func main() {
 
 	now := time.Now().UTC() // Will use GMT+7 if no UTC()
 
+	newId, _ := uuid.NewV7()
+
 	newProd := Product{
 		BaseModel: BaseModel{
+			Id:        newId,
 			Status:    "activated",
 			CreatedAt: now,
 			UpdatedAt: now,
@@ -80,7 +84,7 @@ func main() {
 
 	if err := db.
 		Table(Product{}.TableName()).
-		Where("id = ?", 3).
+		// Where("id = ?", 3).
 		First(&oldProduct).Error; err != nil {
 		log.Println(err)
 	}
@@ -109,28 +113,29 @@ func main() {
 		log.Println(err)
 	}
 
-	oldProduct.Name = "" // Update its name to ""
+	// oldProduct.Name = "" // Update its name to ""
 
 	// Default update (no need to use "Where condition" cuz oldProduct has provided its 'Id')
-	if err := db.
-		Table(Product{}.TableName()).
-		Updates(oldProduct).Error; err != nil {
-		log.Println(err) // Will cause error cuz Gorm won't update "empty, nil, 0" values
-	}
+	// if err := db.
+	// 	Table(Product{}.TableName()).
+	// 	Updates(oldProduct).Error; err != nil {
+	// 	log.Println(err) // Will cause error cuz Gorm won't update "empty, nil, 0" values
+	// }
 
-	emptyStr := ""
-	if err := db.
-		Table(Product{}.TableName()).
-		Where("id = ?", 3).
-		Updates(ProductUpdate{Name: &emptyStr}).Error; err != nil {
-		log.Println(err)
-	}
+	// emptyStr := ""
+
+	// if err := db.
+	// 	Table(Product{}.TableName()).
+	// 	Where("id = ?", 3).
+	// 	Updates(ProductUpdate{Name: &emptyStr}).Error; err != nil {
+	// 	log.Println(err)
+	// }
 
 	// Delete
-	if err := db.
-		Table(Product{}.TableName()).
-		Where("id = ?", 4).
-		Delete(nil).Error; err != nil {
-		log.Println(err)
-	}
+	// if err := db.
+	// 	Table(Product{}.TableName()).
+	// 	Where("id = ?", 4).
+	// 	Delete(nil).Error; err != nil {
+	// 	log.Println(err)
+	// }
 }
