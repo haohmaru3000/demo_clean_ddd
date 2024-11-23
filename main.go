@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -10,18 +11,18 @@ import (
 )
 
 type BaseModel struct {
-	Id        uuid.UUID `gorm:"column:id;"`
-	Status    string    `gorm:"column:status;"`
-	CreatedAt time.Time `gorm:"column:created_at;"`
-	UpdatedAt time.Time `gorm:"column:updated_at;"`
+	Id        uuid.UUID `gorm:"column:id;" json:"id"`
+	Status    string    `gorm:"column:status;" json:"status"`
+	CreatedAt time.Time `gorm:"column:created_at;" json:"created_at"`
+	UpdatedAt time.Time `gorm:"column:updated_at;" json:"updated_at"`
 }
 type Product struct {
 	BaseModel
-	CategoryId  int    `gorm:"column:category_id;"`
-	Name        string `gorm:"column:name;"`
-	Image       any    `gorm:"column:image;"`
-	Type        string `gorm:"column:type;"`
-	Description string `gorm:"column:description;"`
+	CategoryId  int    `gorm:"column:category_id;" json:"category_id"`
+	Name        string `gorm:"column:name;" json:"name"`
+	Image       any    `gorm:"column:image;" json:"image"`
+	Type        string `gorm:"column:type;" json:"type"`
+	Description string `gorm:"column:description;" json:"description"`
 }
 
 func (Product) TableName() string {
@@ -158,6 +159,16 @@ func main() {
 	}
 
 	data, _ := json.Marshal(newProd)
+
+	jsString := "{\"id\":\"01935a02-76ee-7ac9-b950-b10836e7fcb1\",\"status\":\"activated\",\"created_at\":\"2024-11-23T17:12:11.246687Z\",\"updated_at\":\"2024-11-23T17:12:11.246687Z\",\"category_id\":1,\"name\":\"Latte\",\"image\":null,\"type\":\"drink\",\"description\":\"\"}"
+
+	var anotherProd Product
+
+	if err := json.Unmarshal([]byte(jsString), &anotherProd); err != nil {
+		log.Println(err)
+	}
+
+	fmt.Println(anotherProd)
 
 	fmt.Println(string(data))
 
