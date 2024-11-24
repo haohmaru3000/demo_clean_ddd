@@ -1,10 +1,15 @@
 package main
 
 import (
-	"encoding/json"
+	"demo_clean_ddd/util"
 	"fmt"
 	"log"
+	"net/http"
+	"strings"
 	"time"
+
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -16,6 +21,19 @@ type BaseModel struct {
 	CreatedAt time.Time `gorm:"column:created_at;" json:"created_at"`
 	UpdatedAt time.Time `gorm:"column:updated_at;" json:"updated_at"`
 }
+
+func GenNewModel() BaseModel {
+	now := time.Now().UTC() // Will use GMT+7 if no UTC()
+	newId, _ := uuid.NewV7()
+
+	return BaseModel{
+		Id:        newId,
+		Status:    "activated",
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+}
+
 type Product struct {
 	BaseModel
 	CategoryId  int    `gorm:"column:category_id;" json:"category_id"`
@@ -140,44 +158,65 @@ type ProductUpdate struct {
 // }
 
 func main() {
-	now := time.Now().UTC() // Will use GMT+7 if no UTC()
+	config, err := util.LoadConfig(".")
+	if err != nil {
+		log.Fatal("cannot load config:", err)
+	}
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
+		config.DBUserName,
+		config.DBUserPassword,
+		config.DBHost,
+		config.DBPort,
+		config.DBName,
+	)
 
-	newId, _ := uuid.NewV7()
-
-	newProd := Product{
-		BaseModel: BaseModel{
-			Id:        newId,
-			Status:    "activated",
-			CreatedAt: now,
-			UpdatedAt: now,
-		},
-		CategoryId:  1,
-		Name:        "Latte",
-		Image:       nil,
-		Type:        "drink",
-		Description: "",
+	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	if err != nil {
+		log.Fatalln(err)
 	}
 
-	data, _ := json.Marshal(newProd)
-
-	jsString := "{\"id\":\"01935a02-76ee-7ac9-b950-b10836e7fcb1\",\"status\":\"activated\",\"created_at\":\"2024-11-23T17:12:11.246687Z\",\"updated_at\":\"2024-11-23T17:12:11.246687Z\",\"category_id\":1,\"name\":\"Latte\",\"image\":null,\"type\":\"drink\",\"description\":\"\"}"
-
-	var anotherProd Product
-
-	if err := json.Unmarshal([]byte(jsString), &anotherProd); err != nil {
-		log.Println(err)
-	}
-
-	fmt.Println(anotherProd)
-
-	fmt.Println(string(data))
+	db = db.Debug()
 
 	r := gin.Default()
+
 	r.GET("/ping", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"message": "pong",
 		})
 	})
 
-	r.Run()
+	v1 := r.Group("/v1")
+	products := v1.Group("/products")
+	products.POST("", func(c *gin.Context) {
+		/** 1. Check & parse data from body **/
+		var productData Product
+
+		// c.Bind(&productData) : convenient func of Gin. Auto unmarshal of JSON body to Struct
+		// If using Unmarshal() except Bind(): tự đi lấy body ra, convert it to []bytes ...
+
+		if err := c.Bind(&productData); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		/** 2. Business Logic do team Product ràng buộc **/
+		// - Phần nhiều nhất mà ta cần maintain, đảm bảo tính chính xác cho Unit-test ở phần này
+		productData.Name = strings.TrimSpace(productData.Name)
+		if productData.Name == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "product name cannot be blank"})
+			return
+		}
+
+		productData.BaseModel = GenNewModel()
+
+		/** 3. Save to db **/
+		if err := db.Table("products").Create(&productData).Error; err != nil {
+			log.Println(err)
+		}
+
+		/** 4. Response to client **/
+		c.JSON(http.StatusCreated, gin.H{"data": productData.Id})
+	})
+
+	r.Run(":3000")
 }
