@@ -4,15 +4,14 @@ import (
 	"gorm.io/gorm"
 	"net/http"
 
+	"demo_clean_ddd/common"
 	productdomain "demo_clean_ddd/module/product/domain"
-	productusecase "demo_clean_ddd/module/product/domain/usecase"
-	productmysql "demo_clean_ddd/module/product/repository/mysql"
 
 	"github.com/gin-gonic/gin"
 )
 
 // Có thể viết theo encapsulation hoặc kiểu method
-func CreateProductAPI(db *gorm.DB) gin.HandlerFunc {
+func (api APIController) CreateProductAPI(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Check & parse data from body
 		var productData productdomain.ProductCreationDTO
@@ -22,10 +21,9 @@ func CreateProductAPI(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		repo := productmysql.NewMysqlRepository(db)
-		useCase := productusecase.NewCreateProductUseCase(repo)
+		productData.Id = common.GenUUID()
 
-		if err := useCase.CreateProduct(c.Request.Context(), &productData); err != nil {
+		if err := api.createUseCase.CreateProduct(c.Request.Context(), &productData); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}

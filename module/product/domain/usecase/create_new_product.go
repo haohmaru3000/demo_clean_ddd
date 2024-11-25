@@ -4,7 +4,6 @@ import (
 	"context"
 	"strings"
 
-	"demo_clean_ddd/common"
 	"demo_clean_ddd/module/product/domain"
 )
 
@@ -32,8 +31,6 @@ func (uc CreateNewProductUseCase) CreateProduct(ctx context.Context, prod *produ
 	if prod.Name == "" {
 		return productdomain.ErrProductNameCannotBeBlank
 	}
-
-	prod.Id = common.GenUUID()
 
 	if err := uc.repo.CreateProduct(ctx, prod); err != nil {
 		return err

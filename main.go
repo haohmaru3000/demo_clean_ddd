@@ -7,6 +7,8 @@ import (
 	"log"
 
 	"demo_clean_ddd/module/product/controller"
+	productusecase "demo_clean_ddd/module/product/domain/usecase"
+	productmysql "demo_clean_ddd/module/product/repository/mysql"
 	"demo_clean_ddd/util"
 
 	"github.com/gin-gonic/gin"
@@ -142,11 +144,16 @@ func main() {
 		})
 	})
 
+	// Setup dependencies
+	repo := productmysql.NewMysqlRepository(db)
+	useCase := productusecase.NewCreateProductUseCase(repo)
+	api := controller.NewAPIController(useCase)
+
 	v1 := r.Group("/v1")
 	{
 		products := v1.Group("/products")
 		{
-			products.POST("", controller.CreateProductAPI(db))
+			products.POST("", api.CreateProductAPI(db))
 		}
 	}
 
