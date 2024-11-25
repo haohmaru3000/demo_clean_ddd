@@ -1,59 +1,16 @@
 package main
 
 import (
-	"demo_clean_ddd/util"
 	"fmt"
-	"log"
-	"net/http"
-	"strings"
-	"time"
-
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+	"log"
+
+	"demo_clean_ddd/module/product/controller"
+	"demo_clean_ddd/util"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 )
-
-type BaseModel struct {
-	Id        uuid.UUID `gorm:"column:id;" json:"id"`
-	Status    string    `gorm:"column:status;" json:"status"`
-	CreatedAt time.Time `gorm:"column:created_at;" json:"created_at"`
-	UpdatedAt time.Time `gorm:"column:updated_at;" json:"updated_at"`
-}
-
-func GenNewModel() BaseModel {
-	now := time.Now().UTC() // Will use GMT+7 if no UTC()
-	newId, _ := uuid.NewV7()
-
-	return BaseModel{
-		Id:        newId,
-		Status:    "activated",
-		CreatedAt: now,
-		UpdatedAt: now,
-	}
-}
-
-type Product struct {
-	BaseModel
-	CategoryId  int    `gorm:"column:category_id;" json:"category_id"`
-	Name        string `gorm:"column:name;" json:"name"`
-	Image       any    `gorm:"column:image;" json:"image"`
-	Type        string `gorm:"column:type;" json:"type"`
-	Description string `gorm:"column:description;" json:"description"`
-}
-
-func (Product) TableName() string {
-	return "products"
-}
-
-type ProductUpdate struct {
-	Name        *string `gorm:"column:name;"`
-	CategoryId  *int    `gorm:"column:category_id;"`
-	Status      *string `gorm:"column:status;"`
-	Type        *string `gorm:"column:type;"`
-	Description *string `gorm:"column:description;"`
-}
 
 // func main() {
 // 	config, err := util.LoadConfig(".")
@@ -186,37 +143,12 @@ func main() {
 	})
 
 	v1 := r.Group("/v1")
-	products := v1.Group("/products")
-	products.POST("", func(c *gin.Context) {
-		/** 1. Check & parse data from body **/
-		var productData Product
-
-		// c.Bind(&productData) : convenient func of Gin. Auto unmarshal of JSON body to Struct
-		// If using Unmarshal() except Bind(): tự đi lấy body ra, convert it to []bytes ...
-
-		if err := c.Bind(&productData); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
+	{
+		products := v1.Group("/products")
+		{
+			products.POST("", controller.CreateProductAPI(db))
 		}
-
-		/** 2. Business Logic do team Product ràng buộc **/
-		// - Phần nhiều nhất mà ta cần maintain, đảm bảo tính chính xác cho Unit-test ở phần này
-		productData.Name = strings.TrimSpace(productData.Name)
-		if productData.Name == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "product name cannot be blank"})
-			return
-		}
-
-		productData.BaseModel = GenNewModel()
-
-		/** 3. Save to db **/
-		if err := db.Table("products").Create(&productData).Error; err != nil {
-			log.Println(err)
-		}
-
-		/** 4. Response to client **/
-		c.JSON(http.StatusCreated, gin.H{"data": productData.Id})
-	})
+	}
 
 	r.Run(":3000")
 }
